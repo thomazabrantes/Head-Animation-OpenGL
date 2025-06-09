@@ -13,6 +13,22 @@ class Ponto:
         self.x = x
         self.y = y
         self.z = z
+
+    def rotaciona_em_torno(self, centro, ang_x, ang_y, ang_z):
+        self.x -= centro.x
+        self.y -= centro.y
+        self.z -= centro.z
+
+        if ang_x:
+            self.rotacionaX(ang_x)
+        if ang_y:
+            self.rotacionaY(ang_y)
+        if ang_z:
+            self.rotacionaZ(ang_z)
+
+        self.x += centro.x
+        self.y += centro.y
+        self.z += centro.z
     
     """ Imprime os valores de cada eixo do ponto """
     # Faz a impressao usando sobrecarga de funcao
@@ -104,4 +120,3 @@ def HaInterseccao(k: Ponto, l: Ponto, m: Ponto, n: Ponto) -> bool:
     if not ret: return False
 
     return s>=0.0 and s <=1.0 and t>=0.0 and t<=1.0
-

@@ -1,12 +1,55 @@
+""" Segundo Trabalho de CG - 2025/1: Animação procedural
+Autores: Breno Spohr e Thomaz Abrantes 
+Data: Junho de 2025
+Disciplina: Computação Gráfica
+Instituição de Ensino: Escola Politécnica - PUCRS
+Trabalho baseado no material cedido pela Professora Soraia Raupp Musse
+"""
 import random
 from OpenGL.GLUT import *
 from OpenGL.GLU import *
 from OpenGL.GL import *
-
 from Objeto3D import *
 
 from Particle import Particle
+
+camera_distance = 10
 particles = []
+
+"""
+Variáveis globais de rotação
+"""
+rotation_sequence = [ # Sequência de rotações simulam os movimentos que a cabeça faz no início do vídeo
+    # Com base em algumas simulações feitas no Blender, obteve-se os seguintes valores:
+    (0, -5, 0),     # Cabeça olhando para a esquerda da tela (estado inicial)   
+    (10, -5, 0),    # Ainda olhando para a esquerda tela, cabeça se inclina para trás    
+    (15, -10, 0),   # Cabeça se inclina mais para trás e olha mais para a esquerda da tela
+    (15, 10, 0),    # Cabeça começa a olhar para a direita da tela      
+    (-12, 15, 0),   # Cabeça olha mais para a direita e vai olhando para baixo    
+    (-13, 20, 0),   # Cabeça olha mais para a direira e mais para baixo    
+    (15, 20, 5),    # Cabeça volta a olhar para cima e se inclina na horizontal    
+    (18, 15, 5),    # Cabeça olha mais pra cima e volta a olhar em direção à esquerda da tela
+    (20, -5, 5)     # Cabeça olha mais em direção à esquerda da tela
+]
+rotation_index = 0                  # Índice da rotação atual na sequência
+rotation_active = False             # Indica se as rotações estão ativas
+frame_counter = 0                   # Contador de frames usados na interpolação atual
+current_rotation = [0.0, 0.0, 0.0]  # Rotação atual aplicada ao objeto
+target_rotation = [0.0, 0.0, 0.0]   # Próxima rotação alvo na sequência
+interpolating = False               # Indica se está interpolando para a próxima rotação
+rotation_step = [0.0, 0.0, 0.0]     # Incrementos por frame para interpolar a rotação
+frames_to_interpolate = 10          # Quantidade de frames para completar a interpolação
+
+"""Variávies globais de translação - movimento de subir e cair"""
+falling = False         # Indica se a cabeça está em queda
+head_y = 0.0            # Posição atual da cabeça
+head_speed = 0.0        # Velocidade vertical da cabeça
+gravity = -0.01         # Aceleração aplicada na queda
+impact_threshold = 0.0  # Posição Y onde ocorre o impacto com o chão
+start_y = 0.0           # Posição inicial da cabeça antes de subir
+target_y = 0.0          # Altura final ao fim da subida
+dy_per_frame = 0.0      # Variação de altura por frame durante a subida
+interpolating_y = False # Indica se a cabeça está interpolando a subida
 
 o:Objeto3D
 
@@ -77,7 +120,7 @@ def PosicUser():
     # As três próximas especificam o ponto de foco nos eixos x, y e z
     # As três últimas especificam o vetor up
     # https://registry.khronos.org/OpenGL-Refpages/gl2.1/xhtml/gluLookAt.xml
-    gluLookAt(-2, 6, -8, 0, 0, 0, 0, 1.0, 0)
+    #gluLookAt(-2, 10, -camera_distance, 0, 0, 0, 0, 1.0, 0)
 
 def DesenhaLadrilho():
     glColor3f(0.5, 0.5, 0.5)  # desenha QUAD preenchido
@@ -110,20 +153,10 @@ def DesenhaPiso():
         glTranslated(1, 0, 0)
     glPopMatrix()
 
-def DesenhaCubo():
-    glPushMatrix()
-    glColor3f(1, 0, 0)
-    glTranslated(0, 0.5, 0)
-    glutSolidCube(1)
-
-    glColor3f(0.5, 0.5, 0)
-    glTranslated(0, 0.5, 0)
-    glRotatef(90, -1, 0, 0)
-    glRotatef(45, 0, 0, 1)
-    glutSolidCone(1, 1, 4, 4)
-    glPopMatrix()
-
 def desenha():
+    glLoadIdentity()
+    gluLookAt(-2, 6, -camera_distance, 0, 0, 0, 0, 1.0, 0)
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
     glMatrixMode(GL_MODELVIEW)
@@ -131,11 +164,15 @@ def desenha():
     atualizar_particulas()
 
     DesenhaPiso()
-    #DesenhaCubo()  
+
     if not particles:
+        glPushMatrix()
+        glTranslatef(0.0, head_y, 0.0)  # Aplica altura vertical da queda
         o.Desenha()
         o.DesenhaWireframe()
         o.DesenhaVertices()
+        glPopMatrix()
+
     else:    
         desenhar_particulas()
 
@@ -143,18 +180,24 @@ def desenha():
     pass
 
 def teclado(key, x, y):
-    global particles
+    global rotation_active, rotation_index, frame_counter, camera_distance
 
     key = key.decode("utf-8")
 
-    if key == 'p':
-        gerar_particulas(o.vertices)
+    if key == 'p':                  # Quando a tecla P é pressionada, a animação começa
+        if not particles:
+            rotation_active = True
+            rotation_index = 0
+            frame_counter = 0
+    elif key == '1':                # Quando a tecla 1 é pressionada, aplica um zoom in
+        camera_distance -= 0.5
+        if camera_distance < 2:
+            camera_distance = 2
+    elif key == '2':                # Quando a tecla 2 é pressionada, aplica um zoom out
+        camera_distance += 0.5
 
-    o.rotation = (1, 0, 0, o.rotation[3] + 2)
-    glutPostRedisplay()
-
-
-def reshape(w, h):
+"""Função para manter as proporções mesmo quando a janela é redimensinada"""
+def redimensionar(w, h):
     glViewport(0, 0, w, h)
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
@@ -162,6 +205,7 @@ def reshape(w, h):
     gluPerspective(60, aspect, 0.01, 50)
     glMatrixMode(GL_MODELVIEW)
 
+"""Gera partículas com base na posição atual dos vértices do modelo"""
 def gerar_particulas(vertices):
     global particles
     particles = []
@@ -174,14 +218,85 @@ def gerar_particulas(vertices):
         p = Particle(offset)
         particles.append(p)
 
-
+"""Atualiza o estado das partículas, incluindo rotação, subida, queda e movimento"""
 def atualizar_particulas():
-    for p in particles:
-        p.update()
+    global rotation_index, rotation_active, frame_counter, interpolating
+    global current_rotation, target_rotation, rotation_step
+    global falling, head_y, head_speed
+    global start_y, target_y, dy_per_frame, interpolating_y
 
+    if rotation_active and not particles:
+        if not interpolating:
+            if rotation_index < len(rotation_sequence):
+                target_rotation = rotation_sequence[rotation_index]
+                rotation_step = [
+                    (target_rotation[0] - current_rotation[0]) / frames_to_interpolate,
+                    (target_rotation[1] - current_rotation[1]) / frames_to_interpolate,
+                    (target_rotation[2] - current_rotation[2]) / frames_to_interpolate
+                ]
+                interpolating = True
+                frame_counter = 0
+
+                # Se for a última rotação (antes da queda), iniciar interpolação da subida
+                if target_rotation == (20, -5, 5):
+                    start_y = head_y
+                    target_y = 3.0
+                    dy_per_frame = (target_y - start_y) / frames_to_interpolate
+                    interpolating_y = True
+            else:
+                # Rotações concluídas, inicia queda
+                falling = True
+                rotation_active = False
+
+        else:
+            # Interpolação de rotação
+            centro = Ponto(0, 0, 0)
+            for v in o.vertices:
+                centro.x += v.x
+                centro.y += v.y
+                centro.z += v.z
+            centro.x /= len(o.vertices)
+            centro.y /= len(o.vertices)
+            centro.z /= len(o.vertices)
+
+            for v in o.vertices:
+                v.rotaciona_em_torno(centro, rotation_step[0], rotation_step[1], rotation_step[2])
+
+            current_rotation[0] += rotation_step[0]
+            current_rotation[1] += rotation_step[1]
+            current_rotation[2] += rotation_step[2]
+
+            # Interpolação da subida
+            if interpolating_y:
+                head_y += dy_per_frame
+
+            frame_counter += 1
+            if frame_counter >= frames_to_interpolate:
+                current_rotation = list(target_rotation)
+                interpolating = False
+                interpolating_y = False  # Finaliza a interpolação vertical
+                head_y = target_y  # Garante que o valor final seja preciso
+                rotation_index += 1
+
+    # Controle da queda após rotações
+    if falling and not particles:
+        head_speed += gravity
+        head_y += head_speed
+
+        if head_y <= impact_threshold:
+            head_y = impact_threshold
+            falling = False
+            gerar_particulas(o.vertices)
+
+    # Atualização das partículas
+    for p in particles:
+        if p.alive:
+            p.update()
+
+"""Renderiza as partículas na tela"""
 def desenhar_particulas():
     glPointSize(5.0)
-    glColor3f(.1, .1, .8)
+    glColor3f(.1, .1, .1)
     glBegin(GL_POINTS)
     for p in particles:
         glVertex3f(p.position.x, p.position.y, p.position.z)
@@ -212,7 +327,8 @@ def main():
     # Registra a funcao callback para tratamento das teclas ASCII
     glutKeyboardFunc(teclado)
 
-    glutReshapeFunc(reshape)
+    # Função responsável por fazer a redimensão
+    glutReshapeFunc(redimensionar)
 
     glutIdleFunc(glutPostRedisplay)
 

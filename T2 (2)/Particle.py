@@ -9,6 +9,26 @@ class Particle:
         self.alive = True
         self.tocou_chao = False
 
+    def rotate_around_point(self, point: Ponto, ang_x=0, ang_y=0, ang_z=0):
+        # Translada para origem
+        self.position.x -= point.x
+        self.position.y -= point.y
+        self.position.z -= point.z
+
+        # Rotaciona
+        if ang_x != 0:
+            self.position.rotacionaX(ang_x)
+        if ang_y != 0:
+            self.position.rotacionaY(ang_y)
+        if ang_z != 0:
+            self.position.rotacionaZ(ang_z)
+
+        # Translada de volta
+        self.position.x += point.x
+        self.position.y += point.y
+        self.position.z += point.z
+
+
     def update(self):
         if not self.tocou_chao:
             # Queda vertical: apenas y muda, x e z fixos
@@ -39,5 +59,3 @@ class Particle:
 
                 if abs(self.velocity.y) < 0.005:
                     self.alive = False
-
-
