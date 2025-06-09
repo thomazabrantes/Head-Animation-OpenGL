@@ -15,6 +15,7 @@ from Particle import Particle
 
 camera_distance = 10
 particles = []
+espiral_ativa = False
 
 """
 Variáveis globais de rotação
@@ -288,10 +289,19 @@ def atualizar_particulas():
             falling = False
             gerar_particulas(o.vertices)
 
+    # Verifica se todas morreram para ativar espiral
+    global espiral_ativa
+    if not espiral_ativa and all(not p.alive for p in particles):
+        espiral_ativa = True
+        for p in particles:
+            p.reiniciar_para_espiral()
+
     # Atualização das partículas
     for p in particles:
         if p.alive:
             p.update()
+
+
 
 """Renderiza as partículas na tela"""
 def desenhar_particulas():
