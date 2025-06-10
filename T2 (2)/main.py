@@ -301,8 +301,6 @@ def atualizar_particulas():
         if p.alive:
             p.update()
 
-
-
 """Renderiza as partículas na tela"""
 def desenhar_particulas():
     glPointSize(5.0)

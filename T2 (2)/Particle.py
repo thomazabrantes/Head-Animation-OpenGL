@@ -12,6 +12,11 @@ class Particle:
         self.em_espiral = False
         self.espiral_delay_frames = 0
         self.frames_esperando_espiral = 0
+        self.reagrupando = False
+        self.reagrupando_t = 0.0
+
+        # Rota o ponto original apenas uma vez e armazena como alvo final
+        self.rotated_target = self.rotaciona_original()
 
         # Parâmetros da espiral
         self.theta = 0.0
@@ -20,7 +25,6 @@ class Particle:
         self.chao = 0.0
         self.cx = self.position.x + random.uniform(-1.0, 1.0)
         self.cz = self.position.z + random.uniform(-1.0, 1.0)
-
 
         # Parâmetros de convergência e ruído
         self.target_cx = 0.0
@@ -31,23 +35,23 @@ class Particle:
         self.raio_ruido = 0.0
         self.altura_max = 3.5
 
+    def rotaciona_original(self):
+        ang_y = math.radians(70)  # Girar para perfil à direita
+        ang_z = math.radians(-20)  # Inclinação leve
 
-    def rotate_around_point(self, point: Ponto, ang_x=0, ang_y=0, ang_z=0):
-        self.position.x -= point.x
-        self.position.y -= point.y
-        self.position.z -= point.z
+        x, y, z = self.original_position.x, self.original_position.y, self.original_position.z
 
-        if ang_x != 0:
-            self.position.rotacionaX(ang_x)
-        if ang_y != 0:
-            self.position.rotacionaY(ang_y)
-        if ang_z != 0:
-            self.position.rotacionaZ(ang_z)
+        # Rotação no eixo Y
+        x1 = x * math.cos(ang_y) + z * math.sin(ang_y)
+        z1 = -x * math.sin(ang_y) + z * math.cos(ang_y)
+        y1 = y
 
-        self.position.x += point.x
-        self.position.y += point.y
-        self.position.z += point.z
+        # Rotação no eixo Z
+        x2 = x1 * math.cos(ang_z) - y1 * math.sin(ang_z)
+        y2 = x1 * math.sin(ang_z) + y1 * math.cos(ang_z)
+        z2 = z1
 
+        return Ponto(x2, y2, z2)
 
     def reiniciar_para_espiral(self):
         self.em_espiral = False
@@ -71,7 +75,6 @@ class Particle:
         self.espiral_delay_frames = int(distancia * 80)
         self.frames_esperando_espiral = 0
 
-
     def update(self):
         if not self.tocou_chao:
             self.velocity.y -= 0.005
@@ -85,7 +88,6 @@ class Particle:
                 self.velocity.y = random.uniform(0.13, 0.2)
                 self.velocity.x = random.uniform(-0.07, 0.07)
                 self.velocity.z = random.uniform(-0.04, 0.04)
-
         else:
             self.velocity.y -= 0.005
             self.position.x += self.velocity.x
@@ -108,31 +110,40 @@ class Particle:
                         self.alive = False
 
         # Movimento em espiral
-        # Movimento em espiral (redemoinho afunilado e orgânico)
         if self.em_espiral:
             self.theta += self.theta_velocidade
-            self.position.y += 0.05  # Subida vertical
+            self.position.y += 0.05
 
             altura = self.position.y - self.chao
             t = min(altura / self.altura_max, 1.0)
-
-            # Curva com afunilamento mais precoce (como easing out expo)
             t = 1 - pow(1 - t, 3.5)
 
-            # Raio começa largo e afunila fortemente
             raio_base = 3.5 * (1 - t) + 0.05 * t
             raio = raio_base + self.raio_ruido
 
-            # Convergência do centro do redemoinho
             self.cx += (self.target_cx - self.cx) * self.convergence_rate
             self.cz += (self.target_cz - self.cz) * self.convergence_rate
 
             self.position.x = self.cx + raio * math.cos(self.theta + self.theta_offset)
             self.position.z = self.cz + raio * math.sin(self.theta + self.theta_offset)
 
-            # Ruído suave
             self.position.x += random.uniform(-0.002, 0.002)
             self.position.z += random.uniform(-0.002, 0.002)
 
-            if self.position.y > self.chao + self.altura_max:
+            if altura >= self.altura_max * 0.98:
+                self.reagrupando = True
+                self.reagrupando_t = 0.0
+                self.em_espiral = False
+
+        # Fase de reorganização no formato original
+        if self.reagrupando:
+            self.reagrupando_t += 0.01
+            t = min(self.reagrupando_t, 1.0)
+
+            self.position.x = (1 - t) * self.position.x + t * self.rotated_target.x
+            self.position.y = (1 - t) * self.position.y + t * self.rotated_target.y
+            self.position.z = (1 - t) * self.position.z + t * self.rotated_target.z
+
+            if t >= 1.0:
+                self.reagrupando = False
                 self.alive = False
