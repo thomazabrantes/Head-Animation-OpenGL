@@ -14,11 +14,17 @@ class Particle:
         self.frames_esperando_espiral = 0
         self.reagrupando = False
         self.reagrupando_t = 0.0
+        self.compressao_frames_totais = 180 
+        self.compressao_frame_atual = 0
 
-        # Rota o ponto original apenas uma vez e armazena como alvo final
-        self.rotated_target = self.rotaciona_original()
+        self.comprimindo = False
+        self.explodindo = False
+        self.t_explosao = 0.0
+        self.explosao_velocidade = Ponto(0, 0, 0)
+        self.cor = [0.1, 0.1, 0.1]
 
-        # Parâmetros da espiral
+        self.rotated_target = self.original_position
+
         self.theta = 0.0
         self.theta_offset = random.uniform(0, 2 * math.pi)
         self.altura_espiral = 0.0
@@ -26,7 +32,6 @@ class Particle:
         self.cx = self.position.x + random.uniform(-1.0, 1.0)
         self.cz = self.position.z + random.uniform(-1.0, 1.0)
 
-        # Parâmetros de convergência e ruído
         self.target_cx = 0.0
         self.target_cz = 0.0
         self.convergence_rate = 0.05
@@ -34,24 +39,6 @@ class Particle:
         self.theta_velocidade = 0.2
         self.raio_ruido = 0.0
         self.altura_max = 3.5
-
-    def rotaciona_original(self):
-        ang_y = math.radians(70)  # Girar para perfil à direita
-        ang_z = math.radians(-20)  # Inclinação leve
-
-        x, y, z = self.original_position.x, self.original_position.y, self.original_position.z
-
-        # Rotação no eixo Y
-        x1 = x * math.cos(ang_y) + z * math.sin(ang_y)
-        z1 = -x * math.sin(ang_y) + z * math.cos(ang_y)
-        y1 = y
-
-        # Rotação no eixo Z
-        x2 = x1 * math.cos(ang_z) - y1 * math.sin(ang_z)
-        y2 = x1 * math.sin(ang_z) + y1 * math.cos(ang_z)
-        z2 = z1
-
-        return Ponto(x2, y2, z2)
 
     def reiniciar_para_espiral(self):
         self.em_espiral = False
@@ -74,6 +61,9 @@ class Particle:
         distancia = math.sqrt(self.position.x**2 + self.position.z**2)
         self.espiral_delay_frames = int(distancia * 80)
         self.frames_esperando_espiral = 0
+
+    def iniciar_compressao(self):
+        self.comprimindo = True
 
     def update(self):
         if not self.tocou_chao:
@@ -109,7 +99,6 @@ class Particle:
                     else:
                         self.alive = False
 
-        # Movimento em espiral
         if self.em_espiral:
             self.theta += self.theta_velocidade
             self.position.y += 0.05
@@ -135,15 +124,47 @@ class Particle:
                 self.reagrupando_t = 0.0
                 self.em_espiral = False
 
-        # Fase de reorganização no formato original
         if self.reagrupando:
             self.reagrupando_t += 0.01
             t = min(self.reagrupando_t, 1.0)
 
-            self.position.x = (1 - t) * self.position.x + t * self.rotated_target.x
-            self.position.y = (1 - t) * self.position.y + t * self.rotated_target.y
-            self.position.z = (1 - t) * self.position.z + t * self.rotated_target.z
+            self.position.x = (1 - t) * self.position.x + t * self.original_position.x
+            self.position.y = (1 - t) * self.position.y + t * self.original_position.y
+            self.position.z = (1 - t) * self.position.z + t * self.original_position.z
 
             if t >= 1.0:
                 self.reagrupando = False
+                self.comprimindo = True
+
+        if self.comprimindo:
+            target = Ponto(0, 2, 0)
+            t = self.compressao_frame_atual / self.compressao_frames_totais
+            t = min(t, 1.0)
+
+            self.position.x = (1 - t) * self.position.x + t * target.x
+            self.position.y = (1 - t) * self.position.y + t * target.y
+            self.position.z = (1 - t) * self.position.z + t * target.z
+
+            self.compressao_frame_atual += 1
+
+            if self.compressao_frame_atual >= self.compressao_frames_totais:
+                self.comprimindo = False
+                self.explodindo = True
+                self.t_explosao = 0.0
+                self.explosao_velocidade = Ponto(
+                    random.uniform(-0.2, 0.2),
+                    random.uniform(0.2, 0.6),
+                    random.uniform(-0.2, 0.2)
+                )
+                self.cor = [random.random(), random.random(), random.random()]
+
+        if self.explodindo:
+            self.t_explosao += 0.01
+            self.position.x += self.explosao_velocidade.x
+            self.position.y += self.explosao_velocidade.y
+            self.position.z += self.explosao_velocidade.z
+            self.explosao_velocidade.y -= 0.01
+
+            if self.t_explosao > 7.0:
+                self.explodindo = False
                 self.alive = False

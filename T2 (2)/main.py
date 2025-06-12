@@ -70,7 +70,6 @@ def init():
     DefineLuz()
     PosicUser()
 
-
 def DefineLuz():
     # Define cores para um objeto dourado
     luz_ambiente = [0.4, 0.4, 0.4]
@@ -169,8 +168,8 @@ def desenha():
     if not particles:
         glPushMatrix()
         glTranslatef(0.0, head_y, 0.0)  # Aplica altura vertical da queda
-        o.Desenha()
-        o.DesenhaWireframe()
+        o.Desenha() # Isso desenha os polígonos
+        o.DesenhaWireframe() # Isso desenha as arestas
         o.DesenhaVertices()
         glPopMatrix()
 
@@ -225,7 +224,7 @@ def atualizar_particulas():
     global current_rotation, target_rotation, rotation_step
     global falling, head_y, head_speed
     global start_y, target_y, dy_per_frame, interpolating_y
-
+    global espiral_ativa
     if rotation_active and not particles:
         if not interpolating:
             if rotation_index < len(rotation_sequence):
@@ -290,7 +289,6 @@ def atualizar_particulas():
             gerar_particulas(o.vertices)
 
     # Verifica se todas morreram para ativar espiral
-    global espiral_ativa
     if not espiral_ativa and all(not p.alive for p in particles):
         espiral_ativa = True
         for p in particles:
@@ -301,12 +299,17 @@ def atualizar_particulas():
         if p.alive:
             p.update()
 
+    # Verifica se todas partículas estão reagrupadas e prontas para abdução
+    if espiral_ativa and all(not p.alive and not p.comprimindo and not p.explodindo for p in particles):
+        for p in particles:
+            p.iniciar_compressao()
+
 """Renderiza as partículas na tela"""
 def desenhar_particulas():
     glPointSize(5.0)
-    glColor3f(.1, .1, .1)
     glBegin(GL_POINTS)
     for p in particles:
+        glColor3f(*p.cor)
         glVertex3f(p.position.x, p.position.y, p.position.z)
     glEnd()
 
