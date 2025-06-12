@@ -5,7 +5,7 @@ Disciplina: Computação Gráfica
 Instituição de Ensino: Escola Politécnica - PUCRS
 Trabalho baseado no material cedido pela Professora Soraia Raupp Musse
 """
-import random
+#import random
 from OpenGL.GLUT import *
 from OpenGL.GLU import *
 from OpenGL.GL import *
@@ -21,9 +21,7 @@ camera_up = [0.0, 1.0, 0.0]
 camera_speed = 0.3
 is_paused = False
 
-"""
-Variáveis globais de rotação
-"""
+# --- VARIÁVEIS GLOBAIS DE ROTAÇÃO ---
 rotation_sequence = [ # Sequência de rotações simulam os movimentos que a cabeça faz no início do vídeo
     # Com base em algumas simulações feitas no Blender, obteve-se os seguintes valores:
     (0, -5, 0),     # Cabeça olhando para a esquerda da tela (estado inicial)   
@@ -45,7 +43,7 @@ interpolating = False               # Indica se está interpolando para a próxi
 rotation_step = [0.0, 0.0, 0.0]     # Incrementos por frame para interpolar a rotação
 frames_to_interpolate = 10          # Quantidade de frames para completar a interpolação
 
-"""Variávies globais de translação - movimento de subir e cair"""
+# --- VARIÁVEIS GLOBAIS DE TRANSLAÇÃO ---
 falling = False         # Indica se a cabeça está em queda
 head_y = 0.0            # Posição atual da cabeça
 head_speed = 0.0        # Velocidade vertical da cabeça
@@ -232,10 +230,10 @@ def gerar_particulas(vertices):
     particles = []
     for v in vertices:
         offset = (
-            v.x + random.uniform(-0.5, 0.5),  # menos dispersão lateral
-            max(v.y, 0),                      # garantir que Y inicial não fique negativo
-            v.z + random.uniform(-0.5, 0.5)   # menos dispersão em Z
-        )
+        v.x,
+        max(v.y, 0),
+        v.z
+    )
         p = Particle(offset)
         particles.append(p)
 
@@ -311,7 +309,7 @@ def atualizar_particulas():
             falling = False
             gerar_particulas(o.vertices)
 
-    # Verifica se todas morreram para ativar espiral
+    # Verifica se todas estabilizaram para ativar espiral
     if not espiral_ativa and all(not p.alive for p in particles):
         espiral_ativa = True
         for p in particles:
@@ -322,7 +320,7 @@ def atualizar_particulas():
         if p.alive:
             p.update()
 
-    # Verifica se todas partículas estão reagrupadas e prontas para abdução
+    # Verifica se todas partículas estão reagrupadas e prontas para compressão
     if espiral_ativa and all(not p.alive and not p.comprimindo and not p.explodindo for p in particles):
         for p in particles:
             p.iniciar_compressao()
