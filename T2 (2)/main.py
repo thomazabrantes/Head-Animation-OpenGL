@@ -13,9 +13,13 @@ from Objeto3D import *
 
 from Particle import Particle
 
-camera_distance = 10
 particles = []
 espiral_ativa = False
+camera_pos = [0.0, 6.0, -10.0]
+camera_target = [0.0, 0.0, 0.0]
+camera_up = [0.0, 1.0, 0.0]
+camera_speed = 0.3
+is_paused = False
 
 """
 Variáveis globais de rotação
@@ -155,7 +159,11 @@ def DesenhaPiso():
 
 def desenha():
     glLoadIdentity()
-    gluLookAt(-2, 6, -camera_distance, 0, 0, 0, 0, 1.0, 0)
+    gluLookAt(
+        camera_pos[0], camera_pos[1], camera_pos[2],
+        camera_target[0], camera_target[1], camera_target[2],
+        camera_up[0], camera_up[1], camera_up[2]
+    )
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
@@ -180,21 +188,34 @@ def desenha():
     pass
 
 def teclado(key, x, y):
-    global rotation_active, rotation_index, frame_counter, camera_distance
-
+    global rotation_active, is_paused, particles, falling, head_y, head_speed, espiral_ativa
+    global current_rotation, rotation_index, frame_counter, interpolating
+    
     key = key.decode("utf-8")
 
-    if key == 'p':                  # Quando a tecla P é pressionada, a animação começa
+    if key == 'p': # Quando a tecla P é pressionada, a animação começa
         if not particles:
             rotation_active = True
-            rotation_index = 0
-            frame_counter = 0
-    elif key == '1':                # Quando a tecla 1 é pressionada, aplica um zoom in
-        camera_distance -= 0.5
-        if camera_distance < 2:
-            camera_distance = 2
-    elif key == '2':                # Quando a tecla 2 é pressionada, aplica um zoom out
-        camera_distance += 0.5
+    elif key == 'w':  # Frente
+        camera_pos[2] += camera_speed
+        camera_target[2] += camera_speed
+    elif key == 's':  # Trás
+        camera_pos[2] -= camera_speed
+        camera_target[2] -= camera_speed
+    elif key == 'd':  # Esquerda
+        camera_pos[0] -= camera_speed
+        camera_target[0] -= camera_speed
+    elif key == 'a':  # Direita
+        camera_pos[0] += camera_speed
+        camera_target[0] += camera_speed
+    elif key == 'q':  # Para cima
+        camera_pos[1] += camera_speed
+        camera_target[1] += camera_speed
+    elif key == 'e':  # Para baixo
+        camera_pos[1] -= camera_speed
+        camera_target[1] -= camera_speed
+    elif key == ' ':  # Barra de espaço para Play/Pause
+        is_paused = not is_paused
 
 """Função para manter as proporções mesmo quando a janela é redimensinada"""
 def redimensionar(w, h):
@@ -225,6 +246,8 @@ def atualizar_particulas():
     global falling, head_y, head_speed
     global start_y, target_y, dy_per_frame, interpolating_y
     global espiral_ativa
+    if is_paused:
+        return
     if rotation_active and not particles:
         if not interpolating:
             if rotation_index < len(rotation_sequence):
