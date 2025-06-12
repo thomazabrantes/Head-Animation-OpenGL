@@ -224,6 +224,8 @@ def redimensionar(w, h):
     gluPerspective(60, aspect, 0.01, 50)
     glMatrixMode(GL_MODELVIEW)
 
+# Funções de coordenção e gerenciamento de partículas
+
 """Gera partículas com base na posição atual dos vértices do modelo"""
 def gerar_particulas(vertices):
     global particles
@@ -307,7 +309,7 @@ def atualizar_particulas():
         if head_y <= impact_threshold:
             head_y = impact_threshold
             falling = False
-            gerar_particulas(o.vertices)
+            gerar_particulas(o.vertices) # Gera partículas a partir dos vértices do modelo após a queda
 
     # Verifica se todas estabilizaram para ativar espiral
     if not espiral_ativa and all(not p.alive for p in particles):
