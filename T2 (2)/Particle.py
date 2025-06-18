@@ -41,7 +41,7 @@ class Particle:
 
         # --- FASE: COMPRESSÃO ---
         self.comprimindo = False            # Indica se a partícula está sendo comprimida
-        self.compressao_frames_totais = 180 # Total de frames para a compressão
+        self.compressao_frames_totais = 250 # Total de frames para a compressão
         self.compressao_frame_atual = 0     # Contador de frames atuais na compressão
 
         # --- FASE: EXPLOSÃO COLORIDA ---
@@ -216,6 +216,6 @@ class Particle:
             self.explosao_velocidade.y -= 0.01
 
             # Após um tempo, partícula finaliza
-            if self.t_explosao > 7.0:
+            if self.t_explosao > 10.0:
                 self.explodindo = False
                 self.alive = False
